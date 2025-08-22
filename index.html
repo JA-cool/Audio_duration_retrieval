@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3音频时长获取器</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .file-input-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .file-info {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .file-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .duration-display {
+            font-size: 2em;
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(45deg, #00b894, #00cec9);
+            border-radius: 15px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .audio-player {
+            width: 100%;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        
+        .file-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .detail-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
+        .error-message {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .drag-area {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .drag-area.dragover {
+            border-color: #00b894;
+            background: rgba(0, 184, 148, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 MP3音频时长获取器</h1>
+        
+        <div class="file-input-container">
+            <input type="file" id="fileInput" class="file-input" accept=".mp3,audio/*">
+            <label for="fileInput" class="file-label">选择MP3文件</label>
+        </div>
+        
+        <div class="drag-area" id="dragArea">
+            <p>或者将MP3文件拖拽到这里</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="file-info" id="fileInfo">
+            <div class="duration-display" id="durationDisplay">
+                时长: --:--
+            </div>
+            
+            <audio id="audioPlayer" class="audio-player" controls>
+                您的浏览器不支持音频播放
+            </audio>
+            
+            <div class="file-details">
+                <div class="detail-item">
+                    <div class="detail-label">文件名</div>
+                    <div class="detail-value" id="fileName">-</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">文件大小</div>
+                    <div class="detail-value" id="fileSize">-</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">文件类型</div>
+                    <div class="detail-value" id="fileType">-</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">比特率</div>
+                    <div class="detail-value" id="bitrate">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dragArea = document.getElementById('dragArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const durationDisplay = document.getElementById('durationDisplay');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // 文件选择处理
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // 拖拽处理
+        dragArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragArea.classList.add('dragover');
+        });
+        
+        dragArea.addEventListener('dragleave', () => {
+            dragArea.classList.remove('dragover');
+        });
+        
+        dragArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+        
+        function handleFile(file) {
+            // 检查文件类型
+            if (!file.type.startsWith('audio/') && !file.name.toLowerCase().endsWith('.mp3')) {
+                showError('请选择有效的音频文件（MP3格式）');
+                return;
+            }
+            
+            // 隐藏错误信息
+            hideError();
+            
+            // 显示文件信息
+            displayFileInfo(file);
+            
+            // 创建音频URL
+            const audioUrl = URL.createObjectURL(file);
+            audioPlayer.src = audioUrl;
+            
+            // 监听音频加载完成事件
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                const duration = audioPlayer.duration;
+                if (isFinite(duration)) {
+                    displayDuration(duration);
+                    calculateBitrate(file.size, duration);
+                } else {
+                    showError('无法获取音频时长，请检查文件格式');
+                }
+            });
+            
+            // 监听音频加载错误
+            audioPlayer.addEventListener('error', () => {
+                showError('音频文件加载失败，请检查文件是否损坏');
+            });
+        }
+        
+        function displayFileInfo(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileType').textContent = file.type || 'audio/mpeg';
+            
+            fileInfo.classList.add('show');
+        }
+        
+        function displayDuration(duration) {
+            const minutes = Math.floor(duration / 60);
+            const seconds = Math.floor(duration % 60);
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            durationDisplay.textContent = `时长: ${formattedDuration}`;
+        }
+        
+        function calculateBitrate(fileSize, duration) {
+            if (duration > 0) {
+                const bitrate = Math.round((fileSize * 8) / duration / 1000); // kbps
+                document.getElementById('bitrate').textContent = `${bitrate} kbps`;
+            }
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            fileInfo.classList.remove('show');
+        }
+        
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html> 
